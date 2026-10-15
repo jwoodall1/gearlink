@@ -120,6 +120,12 @@ tbody tr:hover { background: #fafcff; }
 .footnote a { color: var(--brand-hover); font-weight: 600; margin-left: auto; }
 .count-badge { background: var(--brand-soft); border-radius: 20px; color: var(--brand-hover); font-size: 11px; padding: 7px 10px; white-space: nowrap; }
 .list-panel { margin-top: 4px; min-height: 310px; }
+.roster-create-panel { margin-bottom: 20px; }
+.athlete-form { border-top: 1px solid var(--line); display: grid; gap: 14px; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; padding: 20px; align-items: end; }
+.athlete-form label { color: var(--ink); display: grid; font-size: 12px; font-weight: 600; gap: 7px; }
+.athlete-form input { background: #fbfcff; border: 1px solid #cbd7e8; border-radius: 9px; color: var(--ink); height: 42px; padding: 0 12px; }
+.athlete-form input:focus { border-color: var(--brand); outline: 3px solid #0062ff20; outline-offset: 1px; }
+.label-optional { color: var(--muted); font-size: 11px; font-weight: 400; }
 .person-cell { align-items: center; display: flex; gap: 10px; }
 .person-avatar { align-items: center; background: var(--brand-soft); border-radius: 50%; color: var(--brand-hover); display: flex; font-size: 10px; height: 32px; justify-content: center; width: 32px; }
 .condition { text-transform: capitalize; }
@@ -169,6 +175,8 @@ tbody tr:hover { background: #fafcff; }
   .panel-heading { padding: 16px; }
   .panel-heading h2 { font-size: 14px; }
   .panel-heading p { font-size: 11px; }
+  .athlete-form { grid-template-columns: 1fr 1fr; }
+  .athlete-form label:nth-child(3) { grid-column: 1 / -1; }
   .login-page { padding: 18px; }
   .login-card { padding: 28px 24px; }
   .footnote a { margin-left: 0; width: 100%; }
