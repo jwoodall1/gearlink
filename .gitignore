@@ -11,3 +11,6 @@ next-env.d.ts
 supabase/.temp/
 supabase/.branches/
 npm-debug.log*
+
+# Local testing credentials
+.local/
