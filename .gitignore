@@ -1,1 +1,13 @@
 AGENTS.md
+.DS_Store
+.env*
+!.env.example
+.next/
+node_modules/
+out/
+next-env.d.ts
+*.tsbuildinfo
+.vercel/
+supabase/.temp/
+supabase/.branches/
+npm-debug.log*
