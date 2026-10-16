@@ -1,16 +1,45 @@
+# Local agent instructions
 AGENTS.md
+
+# macOS metadata
 .DS_Store
+._*
+
+# Credentials and machine-specific configuration
 .env*
 !.env.example
-.next/
+.local/
+iOS/Config/Local.xcconfig
+
+# Node / Next.js dependencies, generated types, and build outputs
 node_modules/
+.next/
 out/
 next-env.d.ts
 *.tsbuildinfo
+*.log
+
+# Local service state
 .vercel/
 supabase/.temp/
 supabase/.branches/
-npm-debug.log*
 
-# Local testing credentials
-.local/
+# Xcode user state (keep shared projects, schemes, and Package.resolved)
+xcuserdata/
+*.xcuserstate
+
+# Swift / Xcode build outputs and exports
+DerivedData/
+.build/
+iOS/build/
+*.xcarchive/
+*.xcresult/
+*.ipa
+*.dSYM/
+*.dSYM.zip
+
+# Local signing material
+*.p12
+*.p8
+*.mobileprovision
+*.provisionprofile

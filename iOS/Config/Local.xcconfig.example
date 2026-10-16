@@ -1,0 +1,4 @@
+// Copy this file to Local.xcconfig and replace the placeholders.
+// Local.xcconfig is gitignored so personal project settings stay out of Git.
+SUPABASE_URL = https:/$()/your-project.supabase.co
+SUPABASE_PUBLISHABLE_KEY = sb_publishable_your_key

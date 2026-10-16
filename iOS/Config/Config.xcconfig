@@ -1,0 +1,5 @@
+// Shared build settings. Personal project values can be added to Local.xcconfig.
+SUPABASE_URL =
+SUPABASE_PUBLISHABLE_KEY =
+
+#include? "Local.xcconfig"
