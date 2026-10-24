@@ -22,3 +22,10 @@ Open `iOS/GearLink.xcodeproj` in Xcode. Follow `iOS/README.md` for local Supabas
 Commit source, assets, migrations, shared project configuration, configuration examples, `package-lock.json`, and Xcode's `Package.resolved`. The iOS asset catalog keeps its own logo copy so the app can bundle it independently.
 
 Local credentials (`.env.local`, `.local/`, and `iOS/Config/Local.xcconfig`), dependencies, build caches, logs, signing material, and Xcode user state are ignored. Keep shared Xcode schemes and workspace configuration tracked.
+
+
+## Production improvement phases
+
+See [the audit and phased plan](docs/production-plan.md) and [Phase 1 results](docs/phase-1-status.md). Each phase requires an owner check-in before the next begins.
+
+Run `npm run typecheck`, `npm test`, and `npm run build` for the web checks. Regression tests use an in-memory query adapter and do not modify hosted records. The dashboard's current organization follows the signed-in user's earliest membership, consistently across web and iOS.

@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getWorkspace } from "@/lib/workspace";
 
 export async function createAthlete(formData: FormData) {
   const firstName = String(formData.get("first_name") ?? "").trim();
@@ -16,20 +16,12 @@ export async function createAthlete(formData: FormData) {
     redirect("/dashboard/athletes?status=invalid");
   }
 
-  const supabase = await createClient();
-  const { data: membership, error: membershipError } = await supabase
-    .from("organization_members")
-    .select("organization_id")
-    .order("created_at")
-    .limit(1)
-    .maybeSingle();
-
-  if (membershipError || !membership) {
-    redirect("/dashboard/athletes?status=workspace");
-  }
+  const { supabase, organization, role } = await getWorkspace();
+  if (!organization) redirect("/dashboard");
+  if (role !== "admin") redirect("/dashboard/athletes?status=forbidden");
 
   const { error } = await supabase.from("athletes").insert({
-    organization_id: membership.organization_id,
+    organization_id: organization.id,
     first_name: firstName,
     last_name: lastName,
     team: team || null,

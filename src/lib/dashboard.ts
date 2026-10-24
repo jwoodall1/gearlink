@@ -1,39 +1,26 @@
-import { createClient } from "@/lib/supabase/server";
+import { getWorkspace } from "@/lib/workspace";
 
 export async function getDashboardData() {
-  const supabase = await createClient();
-  const { data: memberships, error: membershipError } = await supabase
-    .from("organization_members")
-    .select("organization_id, role, organizations(id, name)")
-    .order("created_at");
-
-  if (membershipError) throw membershipError;
-  const membership = memberships?.[0];
-  const organization = Array.isArray(membership?.organizations)
-    ? membership.organizations[0]
-    : membership?.organizations;
-
-  if (!membership || !organization) {
-    return { organization: null, equipment: [], athletes: [], assignments: [], events: [] };
-  }
-
-  const orgId = membership.organization_id;
-  const [equipment, athletes, assignments, events] = await Promise.all([
-    supabase.from("equipment").select("id, name, category, size, condition, status", { count: "exact" }).eq("organization_id", orgId).order("created_at", { ascending: false }).limit(8),
-    supabase.from("athletes").select("id, first_name, last_name, team, active").eq("organization_id", orgId).eq("active", true).order("last_name").limit(8),
-    supabase.from("equipment_assignments").select("id, equipment_id, athlete_id, checked_out_at, equipment(name), athletes(first_name, last_name)", { count: "exact" }).eq("organization_id", orgId).is("returned_at", null).order("checked_out_at", { ascending: false }).limit(8),
-    supabase.from("equipment_events").select("id, event_type, created_at, equipment(name), athletes(first_name, last_name)").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(6),
+  const { supabase, organization } = await getWorkspace();
+  if (!organization) return {
+    organization, equipmentCount: 0, availableCount: 0, assignmentCount: 0,
+    athleteCount: 0, attentionCount: 0, assignments: [], events: [], attention: [],
+  };
+  const orgId = organization.id;
+  const [equipment, available, athletes, assignments, events, attention] = await Promise.all([
+    supabase.from("equipment").select("id", { count: "exact", head: true }).eq("organization_id", orgId),
+    supabase.from("equipment").select("id", { count: "exact", head: true }).eq("organization_id", orgId).eq("status", "available"),
+    supabase.from("athletes").select("id", { count: "exact", head: true }).eq("organization_id", orgId).eq("active", true),
+    supabase.from("equipment_assignments").select("id, equipment_id, athlete_id, checked_out_at, equipment(name), athletes(first_name, last_name)", { count: "exact" }).eq("organization_id", orgId).is("returned_at", null).order("checked_out_at", { ascending: false }).order("id").limit(8),
+    supabase.from("equipment_events").select("id, event_type, created_at, equipment(name), athletes(first_name, last_name)").eq("organization_id", orgId).order("created_at", { ascending: false }).order("id").limit(6),
+    supabase.from("equipment").select("id, name, status, condition", { count: "exact" }).eq("organization_id", orgId).neq("status", "retired").or("status.eq.maintenance,condition.eq.needs_repair").order("updated_at", { ascending: false }).order("id").limit(4),
   ]);
-  const failed = [equipment, athletes, assignments, events].find((result) => result.error);
+  const failed = [equipment, available, athletes, assignments, events, attention].find((result) => result.error);
   if (failed?.error) throw failed.error;
-
   return {
-    organization,
-    equipment: equipment.data ?? [],
-    equipmentCount: equipment.count ?? 0,
-    assignmentCount: assignments.count ?? 0,
-    athletes: athletes.data ?? [],
-    assignments: assignments.data ?? [],
-    events: events.data ?? [],
+    organization, equipmentCount: equipment.count ?? 0, availableCount: available.count ?? 0,
+    assignmentCount: assignments.count ?? 0, athleteCount: athletes.count ?? 0,
+    attentionCount: attention.count ?? 0, attention: attention.data ?? [],
+    assignments: assignments.data ?? [], events: events.data ?? [],
   };
 }

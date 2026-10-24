@@ -36,16 +36,16 @@ Additional checks: add an athlete, edit its name/team, clear its team, and toggl
 
 ## Settings and appearance
 
-The bottom tab bar contains Dashboard and Settings. Settings shows the signed-in account and provides sign-out. Appearance offers System (the default), Light, and Dark; the choice is saved on this device and also applies to the login screen. System follows device appearance changes automatically. Dashboard cards, text, roster screens, forms, and the scanner support both appearances.
+The bottom tab bar contains Dashboard, Athletes, and Settings. Settings shows the signed-in account and provides sign-out. Appearance offers System (the default), Light, and Dark; the choice is saved on this device and also applies to the login screen. System follows device appearance changes automatically. Dashboard cards, text, roster screens, forms, and the scanner support both appearances.
 
 Check each appearance choice in Settings, reopen the app to confirm the selection persists, and change the device appearance while System is selected. Verify sign-out returns to the login screen with the selected appearance.
 
 
 ## NFC scanner (temporarily disabled)
 
-NFC scanning is currently disabled so the app can build with a free Personal Team. The scan button is disabled, the reader code is preserved, and Debug/Release no longer reference the NFC entitlement file or request the NFC signing capability. The usage description and unused entitlement file remain for future use.
+NFC scanning is temporarily disabled. The scan button is disabled, the reader code and entitlement file are preserved, and Debug/Release do not request the NFC signing capability. The usage description and entitlement file remain for future use.
 
-To re-enable after selecting an enrolled Apple Developer Program team:
+To re-enable after selecting a team and provisioning profile that support NFC Tag Reading:
 
 1. Add Near Field Communication Tag Reading in Xcode's Signing & Capabilities.
 2. Set Code Signing Entitlements to `GearLink/GearLink.entitlements` for both Debug and Release; ensure the profile includes NFC Tag Reading.
@@ -72,3 +72,12 @@ Check on iPhone:
 - Scan multiple-record and binary-record tags; expand raw payloads.
 - Cancel the system sheet and scan again; also retry after a timeout or moving the tag away during reading.
 - Verify the scanner remains readable in Light, Dark, and System appearance.
+
+
+## Phase 1 presentation update
+
+Overview now reads exact equipment/availability/open-assignment counts and maintenance/repair flags from the current organization. Retired items are excluded from attention. Expand a flagged item to inspect its recorded details. Failed refreshes retain previous equipment data with a warning; the update timestamp identifies the last successful load. These are read-only summaries.
+
+Athletes is directly accessible from the tab bar. Shared semantic colors/cards/messages support the existing appearance preference, and metrics stack at accessibility text sizes. Roster saves provide success feedback after backend confirmation; cancelling changed athlete fields asks before discarding them.
+
+See `../docs/phase-1-status.md` for validation and outstanding runtime device QA.

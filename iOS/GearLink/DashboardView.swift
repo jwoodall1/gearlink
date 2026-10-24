@@ -1,33 +1,11 @@
 import SwiftUI
 import UIKit
 
-private enum Brand {
-    static let blue = adaptive(light: 0x0062FF, dark: 0x6AA5FF)
-    static let ink = adaptive(light: 0x122442, dark: 0xE8EFFB)
-    static let paper = adaptive(light: 0xF4F7FC, dark: 0x101724)
-    static let soft = adaptive(light: 0xEDF4FF, dark: 0x203454)
-    static let line = adaptive(light: 0xDFE7F3, dark: 0x34445C)
-    static let card = adaptive(light: 0xFFFFFF, dark: 0x1B2638)
-
-    private static func adaptive(light: UInt32, dark: UInt32) -> Color {
-        Color(uiColor: UIColor { traits in
-            let hex = traits.userInterfaceStyle == .dark ? dark : light
-            return UIColor(red: CGFloat((hex >> 16) & 255) / 255,
-                           green: CGFloat((hex >> 8) & 255) / 255,
-                           blue: CGFloat(hex & 255) / 255, alpha: 1)
-        })
-    }
-}
-
-private extension View {
-    func panel() -> some View {
-        self.padding(20).frame(maxWidth: .infinity, alignment: .leading)
-            .background(Brand.card, in: RoundedRectangle(cornerRadius: 16))
-            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Brand.line, lineWidth: 1))
-    }
-}
-
 struct DashboardView: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @StateObject private var dashboard = DashboardStore()
+    @State private var selectedTab = Tab.overview
+    private enum Tab { case overview, roster, settings }
     @StateObject private var roster: RosterStore
     let username: String
     let signingOut: Bool
@@ -43,15 +21,21 @@ struct DashboardView: View {
     }
 
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             overview
                 .tabItem { Label("Dashboard", systemImage: "square.grid.2x2") }
+                .tag(Tab.overview)
+            NavigationStack { RosterView(store: roster) }
+                .tabItem { Label("Athletes", systemImage: "person.2") }
+                .tag(Tab.roster)
             SettingsView(username: username, signingOut: signingOut,
                          savingRoster: roster.isSaving, signOutError: signOutError,
                          signOut: signOut)
                 .tabItem { Label("Settings", systemImage: "gearshape") }
+                .tag(Tab.settings)
         }
         .tint(Brand.blue)
+        .task { await refresh() }
     }
 
     private var overview: some View {
@@ -63,58 +47,101 @@ struct DashboardView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("YOUR TEAM. YOUR GEAR. CONNECTED.")
                             .font(.caption2.bold()).tracking(1.3).foregroundStyle(Brand.blue)
-                        Text("Welcome back, \(username)").font(.title.bold())
-                        Text(roster.membership?.organizations.name ?? "Your workspace")
+                        Text(roster.membership?.organizations.name ?? "Welcome back").font(.title.bold())
+                        Text("Your equipment and athletes at a glance.")
                             .foregroundStyle(.secondary)
                     }
                     if let error = roster.errorMessage {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text(error).foregroundStyle(.red)
-                            Button("Try again") { Task { await roster.load() } }
-                        }.panel()
+                        WorkspaceMessage(title: "Workspace couldn't refresh", message: error,
+                                         icon: "wifi.exclamationmark", retry: { Task { await refresh() } }).gearPanel()
                     }
                     if roster.isLoading && !roster.hasLoaded {
-                        ProgressView("Loading your workspace…").panel()
+                        ProgressView("Loading your workspace…").gearPanel()
                     } else if roster.membership != nil {
-                        HStack(spacing: 12) {
-                            stat("Active athletes", value: roster.activeCount, icon: "person.2.fill")
-                            stat("Teams", value: roster.teamCount, icon: "sportscourt.fill")
+                        equipmentOverview
+                        LazyVGrid(columns: metricColumns, spacing: 12) {
+                            MetricTile(title: "Active athletes", value: roster.activeCount, icon: "person.2.fill")
+                            MetricTile(title: "Teams", value: roster.teamCount, icon: "sportscourt.fill")
                         }
-                        NavigationLink {
-                            RosterView(store: roster)
-                        } label: {
-                            actionCard("Team roster", detail: "View athletes and manage your roster", icon: "person.3.fill")
+                        Button { selectedTab = .roster } label: {
+                            actionCard("Team roster", detail: "Find athletes and manage your roster", icon: "person.3.fill")
                         }.buttonStyle(.plain)
                     } else if roster.hasLoaded && roster.errorMessage == nil {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("No organization yet").font(.headline)
-                            Text("Set up your organization in the web dashboard or ask an administrator to add you.")
-                                .foregroundStyle(.secondary)
-                        }.panel()
+                        WorkspaceMessage(title: "No organization yet",
+                                         message: "Set up your organization in the web dashboard or ask an administrator to add you.",
+                                         icon: "building.2").gearPanel()
                     }
                     NavigationLink {
                         NFCScannerView()
                     } label: {
                         actionCard("Open scanner", detail: "Read an NFC tag ID and its data", icon: "wave.3.right.circle")
                     }.buttonStyle(.plain)
-                    Label("Your roster is connected to GearLink.", systemImage: "cloud")
-                        .font(.footnote).foregroundStyle(.secondary)
+                    if let updated = dashboard.lastUpdated {
+                        Text("Equipment updated \(updated.formatted(date: .omitted, time: .shortened)). Pull down to refresh.")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
                 }.padding(20).frame(maxWidth: 700)
                     .frame(maxWidth: .infinity)
             }
             .background(Brand.paper)
             .navigationTitle("Overview").navigationBarTitleDisplayMode(.inline)
-            .refreshable { await roster.load() }
-            .task { await roster.load() }
+            .refreshable { await refresh() }
         }.tint(Brand.blue).foregroundStyle(Brand.ink)
     }
 
-    private func stat(_ label: String, value: Int, icon: String) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Image(systemName: icon).foregroundStyle(Brand.blue)
-            Text("\(value)").font(.largeTitle.bold())
-            Text(label).font(.caption).foregroundStyle(.secondary)
-        }.panel()
+    private var metricColumns: [GridItem] {
+        Array(repeating: GridItem(.flexible(), alignment: .top), count: dynamicTypeSize.isAccessibilitySize ? 1 : 2)
+    }
+
+    private func refresh() async {
+        await roster.load()
+        await dashboard.load(organizationID: roster.membership?.organization_id)
+    }
+
+    @ViewBuilder private var equipmentOverview: some View {
+        if let error = dashboard.errorMessage {
+            WorkspaceMessage(title: dashboard.summary == nil ? "Equipment unavailable" : "Showing previous equipment data",
+                             message: error, icon: "wifi.exclamationmark",
+                             retry: { Task { await dashboard.load(organizationID: roster.membership?.organization_id) } }).gearPanel()
+        }
+        if dashboard.isLoading && dashboard.summary == nil {
+            ProgressView("Loading equipment…").gearPanel()
+        }
+        if let summary = dashboard.summary {
+            LazyVGrid(columns: metricColumns, spacing: 12) {
+                MetricTile(title: "Total equipment", value: summary.total, icon: "shippingbox.fill")
+                MetricTile(title: "Currently issued", value: summary.issued, icon: "arrow.up.right")
+                MetricTile(title: "Available", value: summary.available, icon: "checkmark.circle.fill")
+                MetricTile(title: "Needs attention", value: summary.attentionCount, icon: "wrench.and.screwdriver.fill")
+            }
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Needs attention").font(.headline)
+                if summary.attention.isEmpty {
+                    Text("No equipment is marked for maintenance or repair.").foregroundStyle(.secondary)
+                } else {
+                    ForEach(summary.attention) { item in
+                        DisclosureGroup {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Category: \(item.category)")
+                                Text("Status: \(item.status.replacingOccurrences(of: "_", with: " "))")
+                                if let size = item.size { Text("Size: \(size)") }
+                                if let color = item.color { Text("Color: \(color)") }
+                                if let notes = item.notes, !notes.isEmpty { Text(notes) }
+                            }.font(.subheadline).foregroundStyle(.secondary).padding(.vertical, 8)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(item.name).foregroundStyle(Brand.ink)
+                                Text(item.attentionLabel).font(.caption).foregroundStyle(.secondary)
+                            }.frame(minHeight: 44)
+                        }
+                    }
+                    if summary.attentionCount > summary.attention.count {
+                        Text("Showing the 5 most recently updated items. Review all flagged equipment in the web dashboard.")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
+                }
+            }.gearPanel()
+        }
     }
 
     private func actionCard(_ title: String, detail: String, icon: String) -> some View {
@@ -127,7 +154,7 @@ struct DashboardView: View {
             }
             Spacer(minLength: 0)
             Image(systemName: "chevron.right").foregroundStyle(Brand.blue)
-        }.panel()
+        }.gearPanel()
     }
 }
 
@@ -155,37 +182,35 @@ private struct RosterView: View {
                     Text("Only organization administrators can edit the roster.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
-                if let notice = store.notice { Text(notice).foregroundStyle(Brand.blue) }
+                if let notice = store.notice {
+                    HStack {
+                        Label(notice, systemImage: "checkmark.circle.fill").foregroundStyle(Brand.blue)
+                        Spacer()
+                        Button { store.notice = nil } label: { Image(systemName: "xmark") }
+                            .accessibilityLabel("Dismiss confirmation").frame(minWidth: 44, minHeight: 44)
+                    }
+                }
                 if let error = store.errorMessage {
-                    Text(error).foregroundStyle(.red)
-                    Button("Try again") { Task { await store.load() } }
+                    WorkspaceMessage(title: "Roster unavailable", message: error, icon: "wifi.exclamationmark", retry: { Task { await store.load() } })
                 }
             }
             Section("\(filtered.count) athletes") {
                 if store.isLoading { ProgressView("Refreshing roster…") }
-                if filtered.isEmpty && !store.isLoading {
+                if filtered.isEmpty && !store.isLoading && store.errorMessage == nil {
                     VStack(alignment: .leading, spacing: 8) {
                         Text(search.isEmpty ? "No athletes to show" : "No matching athletes").font(.headline)
-                        Text(search.isEmpty ? "Add an athlete to get started, or include inactive athletes." : "Try a different name or team.")
+                        Text(search.isEmpty ? (store.canEdit ? "Add an athlete to get started, or include inactive athletes." : "Ask your administrator to add athletes, or include inactive athletes.") : "Try a different name or team.")
                             .font(.subheadline).foregroundStyle(.secondary)
                     }.padding(.vertical, 12)
                 }
                 ForEach(filtered) { athlete in
-                    Button { editor = EditorSelection(athlete: athlete) } label: {
-                        HStack(spacing: 12) {
-                            Text(athlete.initials).font(.caption.bold()).foregroundStyle(Brand.blue)
-                                .frame(width: 40, height: 40).background(Brand.soft, in: Circle())
-                            VStack(alignment: .leading, spacing: 5) {
-                                Text(athlete.name).font(.headline).foregroundStyle(Brand.ink)
-                                Text(athlete.team ?? "No team").font(.subheadline).foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            if !athlete.active { Text("Inactive").font(.caption).foregroundStyle(.secondary) }
-                            if store.canEdit { Image(systemName: "pencil").foregroundStyle(Brand.blue) }
-                        }.padding(.vertical, 6)
+                    if store.canEdit {
+                        Button { editor = EditorSelection(athlete: athlete) } label: {
+                            AthleteSummaryRow(athlete: athlete, editable: true)
+                        }.accessibilityHint("Edit athlete")
+                    } else {
+                        AthleteSummaryRow(athlete: athlete, editable: false)
                     }
-                    .disabled(!store.canEdit)
-                    .accessibilityHint(store.canEdit ? "Edit athlete" : "Read only")
                 }
             }
         }
@@ -216,6 +241,7 @@ private struct AthleteEditor: View {
     @State private var team: String
     @State private var active: Bool
     @State private var error: String?
+    @State private var showDiscard = false
 
     init(store: RosterStore, athlete: Athlete?) {
         self.store = store
@@ -224,6 +250,11 @@ private struct AthleteEditor: View {
         _lastName = State(initialValue: athlete?.last_name ?? "")
         _team = State(initialValue: athlete?.team ?? "")
         _active = State(initialValue: athlete?.active ?? true)
+    }
+
+    private var hasChanges: Bool {
+        firstName != (athlete?.first_name ?? "") || lastName != (athlete?.last_name ?? "")
+            || team != (athlete?.team ?? "") || active != (athlete?.active ?? true)
     }
 
     private var valid: Bool {
@@ -255,7 +286,9 @@ private struct AthleteEditor: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }.disabled(store.isSaving)
+                    Button("Cancel") {
+                        if hasChanges { showDiscard = true } else { dismiss() }
+                    }.disabled(store.isSaving)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
@@ -263,6 +296,7 @@ private struct AthleteEditor: View {
                             error = nil
                             do {
                                 try await store.save(id: athlete?.id, firstName: firstName, lastName: lastName, team: team, active: active)
+                                UINotificationFeedbackGenerator().notificationOccurred(.success)
                                 dismiss()
                             } catch let failure as RosterError {
                                 error = failure.localizedDescription
@@ -273,7 +307,13 @@ private struct AthleteEditor: View {
                     }.disabled(!valid || store.isSaving || !store.canEdit)
                 }
             }
-        }.interactiveDismissDisabled(store.isSaving).tint(Brand.blue)
+        }
+        .interactiveDismissDisabled(store.isSaving || hasChanges)
+        .confirmationDialog("Discard unsaved changes?", isPresented: $showDiscard, titleVisibility: .visible) {
+            Button("Discard changes", role: .destructive) { dismiss() }
+            Button("Keep editing", role: .cancel) { }
+        }
+        .tint(Brand.blue)
     }
 }
 

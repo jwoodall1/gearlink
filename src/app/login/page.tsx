@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { signIn } from "./actions";
+import { SubmitButton } from "@/components/ui/submit-button";
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const supabase = await createClient();
@@ -16,7 +17,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
     <form action={signIn} className="login-form">
       <label>Email<input name="email" type="email" autoComplete="email" required /></label>
       <label>Password<input name="password" type="password" autoComplete="current-password" required /></label>
-      <button className="button button-primary" type="submit">Sign in <span>↗</span></button>
+      <SubmitButton pendingLabel="Signing in…">Sign in <span aria-hidden="true">↗</span></SubmitButton>
     </form><p className="form-footnote">Ask your organization administrator for an account.</p>
   </section></main>;
 }

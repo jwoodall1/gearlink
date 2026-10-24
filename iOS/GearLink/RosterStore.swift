@@ -58,12 +58,13 @@ final class RosterStore: ObservableObject {
         guard let client, !isLoading, !isSaving else { return }
         isLoading = true
         errorMessage = nil
+        notice = nil
         defer { isLoading = false; hasLoaded = true }
         do {
             // Membership RLS may return colleagues too; explicitly select this user.
             let memberships: [RosterMembership] = try await client.from("organization_members")
                 .select("organization_id, role, organizations(name)")
-                .eq("user_id", value: userID).order("created_at").limit(1).execute().value
+                .eq("user_id", value: userID).order("created_at").order("organization_id").limit(1).execute().value
             guard let workspace = memberships.first else {
                 membership = nil
                 athletes = []

@@ -62,7 +62,8 @@ struct ContentView: View {
             }
             .scrollDismissesKeyboard(.interactively)
         }
-        .background(Color(uiColor: .systemBackground))
+        .background(Brand.paper)
+        .tint(Brand.blue)
     }
 
     private var loginForm: some View {
