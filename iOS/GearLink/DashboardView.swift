@@ -71,10 +71,17 @@ struct DashboardView: View {
                                          message: "Set up your organization in the web dashboard or ask an administrator to add you.",
                                          icon: "building.2").gearPanel()
                     }
+                    if let membership = roster.membership, roster.errorMessage == nil {
+                        NavigationLink {
+                            EquipmentRegistrationHome(context: RegistrationContext(userID: roster.userID, organizationID: membership.organization_id))
+                        } label: {
+                            actionCard("Register equipment", detail: "Save equipment and recover pending tags", icon: "plus.circle")
+                        }.buttonStyle(.plain)
+                    }
                     NavigationLink {
-                        NFCScannerView()
+                        NFCScannerView(registrationContext: roster.membership.map { RegistrationContext(userID: roster.userID, organizationID: $0.organization_id) })
                     } label: {
-                        actionCard("Open scanner", detail: "Read an NFC tag ID and its data", icon: "wave.3.right.circle")
+                        actionCard("Scan equipment", detail: "Find equipment, issue gear or process a return", icon: "wave.3.right.circle")
                     }.buttonStyle(.plain)
                     if let updated = dashboard.lastUpdated {
                         Text("Equipment updated \(updated.formatted(date: .omitted, time: .shortened)). Pull down to refresh.")

@@ -4,6 +4,9 @@ import Combine
 
 struct NFCScannerView: View {
     @StateObject private var scanner = NFCScanner()
+    var registrationContext: RegistrationContext? = nil
+    @State private var registrationScan: ScanSelection?
+    private struct ScanSelection: Identifiable { let id = UUID(); let scan: RegistrationScan }
 
     var body: some View {
         List {
@@ -30,6 +33,14 @@ struct NFCScannerView: View {
             }
 
             if let result = scanner.result {
+                if let context = registrationContext, let evidence = result.registrationScan, !scanner.isScanning {
+                    Section {
+                        Button("Use tag for equipment") {
+                            registrationScan = ScanSelection(scan: evidence)
+                        }
+                        Text("Check this tag against your program before entering equipment details.").font(.footnote).foregroundStyle(.secondary)
+                    }.id(context.organizationID)
+                }
                 Section("Tag details") {
                     detail("Tag ID (hex)", result.identifier)
                     detail("Tag type", result.tagType)
@@ -62,6 +73,14 @@ struct NFCScannerView: View {
         .navigationTitle("NFC scanner")
         .navigationBarTitleDisplayMode(.inline)
         .onDisappear { scanner.cancel() }
+        .onChange(of: scanner.isScanning) { scanning in
+            if !scanning, registrationContext != nil, let evidence = scanner.result?.registrationScan {
+                registrationScan = ScanSelection(scan: evidence)
+            }
+        }
+        .sheet(item: $registrationScan) { selection in
+            if let context = registrationContext { RegisterEquipmentView(context: context, scan: selection.scan) }
+        }
     }
 
     private func detail(_ title: String, _ value: String) -> some View {
@@ -80,6 +99,7 @@ struct NFCScanResult {
     var capacity: Int?
     var records: [NFCRecord] = []
     var note: String?
+    var registrationScan: RegistrationScan?
 }
 
 struct NFCRecord {
@@ -124,9 +144,9 @@ private extension Data {
 }
 
 @MainActor
-final class NFCScanner: NSObject, ObservableObject, NFCTagReaderSessionDelegate {
-    // Re-enable only after restoring NFC signing entitlements (see iOS/README.md).
-    static let isEnabled = false
+final class NFCScanner: NSObject, ObservableObject, NFCTagReaderSessionDelegate, NFCWritingTransport {
+    // Debug and Release include GearLink.entitlements for NFC Tag Reading.
+    static let isEnabled = true
 
     @Published private(set) var isScanning = false
     @Published private(set) var status = NFCScanner.isEnabled ? "Ready to scan." : "You can continue using the dashboard and roster."
@@ -134,9 +154,25 @@ final class NFCScanner: NSObject, ObservableObject, NFCTagReaderSessionDelegate 
     var isAvailable: Bool { Self.isEnabled && NFCTagReaderSession.readingAvailable }
     private var readerSession: NFCTagReaderSession?
     private var isReading = false
+    // A single lease covers diagnostic and writing instances. Release only after
+    // Core NFC invalidates the session, not when a sheet starts dismissing.
+    private static var sessionOwner: NFCScanner?
+    private var leaseSession: NFCTagReaderSession?
+    private var writeContinuation: CheckedContinuation<EquipmentTagUID, Error>?
+    private var writingConnection: WritingConnection?
+    private var writingMode = false
+    private struct WritingConnection {
+        let session: NFCTagReaderSession
+        let tag: any NFCNDEFTag
+        let rawUID: Data
+        let technology: EquipmentTagTechnology
+    }
 
     func start() {
-        guard !isScanning, isAvailable else { return }
+        guard !isScanning, isAvailable, Self.sessionOwner == nil else {
+            status = "Another NFC operation is active. Finish or cancel it before scanning."
+            return
+        }
         result = nil
         status = "Hold your iPhone near a tag."
         let session = NFCTagReaderSession(pollingOption: [.iso14443, .iso15693], delegate: self, queue: nil)
@@ -144,6 +180,8 @@ final class NFCScanner: NSObject, ObservableObject, NFCTagReaderSessionDelegate 
             status = "Couldn't start NFC scanning. Please try again."
             return
         }
+        Self.sessionOwner = self
+        leaseSession = session
         readerSession = session
         isScanning = true
         session.alertMessage = "Hold the top of your iPhone near a single NFC tag."
@@ -155,6 +193,10 @@ final class NFCScanner: NSObject, ObservableObject, NFCTagReaderSessionDelegate 
         readerSession = nil
         isScanning = false
         isReading = false
+        writingConnection = nil
+        writingMode = false
+        writeContinuation?.resume(throwing: CancellationError())
+        writeContinuation = nil
         status = "Scan cancelled."
         session.invalidate()
     }
@@ -163,7 +205,15 @@ final class NFCScanner: NSObject, ObservableObject, NFCTagReaderSessionDelegate 
 
     nonisolated func tagReaderSession(_ session: NFCTagReaderSession, didInvalidateWithError error: Error) {
         Task { @MainActor in
+            if self.leaseSession === session, Self.sessionOwner === self {
+                Self.sessionOwner = nil
+                self.leaseSession = nil
+            }
             guard self.readerSession === session else { return }
+            self.writingConnection = nil
+            self.writingMode = false
+            self.writeContinuation?.resume(throwing: NFCWriteError.message("NFC scanning stopped or timed out. Scan the same tag again to recover."))
+            self.writeContinuation = nil
             self.readerSession = nil
             self.isScanning = false
             self.isReading = false
@@ -199,37 +249,48 @@ final class NFCScanner: NSObject, ObservableObject, NFCTagReaderSessionDelegate 
                 return
             }
             self.isReading = true
-            await self.read(tag, session: session)
+            if self.writingMode { await self.connectWritingTag(tag, session: session) }
+            else { await self.read(tag, session: session) }
         }
     }
 
     private func read(_ tag: NFCTag, session: NFCTagReaderSession) async {
         let ndefTag: any NFCNDEFTag
         var scan: NFCScanResult
+        let rawUID: Data
+        let technology: EquipmentTagTechnology?
         switch tag {
         case .miFare(let tag):
             ndefTag = tag
+            rawUID = tag.identifier; technology = tag.mifareFamily == .ultralight ? .mifare : nil
             scan = NFCScanResult(identifier: tag.identifier.nfcHex, tagType: "MIFARE / ISO 14443")
         case .iso15693(let tag):
             ndefTag = tag
+            rawUID = tag.identifier; technology = .iso15693
             scan = NFCScanResult(identifier: tag.identifier.nfcHex, tagType: "ISO 15693")
         case .iso7816(let tag):
             ndefTag = tag
+            rawUID = tag.identifier; technology = nil
             scan = NFCScanResult(identifier: tag.identifier.nfcHex, tagType: "ISO 7816")
         case .feliCa(let tag):
             ndefTag = tag
+            rawUID = tag.currentIDm; technology = nil
             scan = NFCScanResult(identifier: tag.currentIDm.nfcHex, tagType: "FeliCa")
         @unknown default:
             finish(session, message: "This tag type isn't supported.")
             return
         }
         result = scan
+        var writable = false
+        var queriedCapacity = 0
         do {
             try await session.connect(to: tag)
             guard readerSession === session else { return }
             let (ndefStatus, capacity) = try await ndefTag.queryNDEFStatus()
             guard readerSession === session else { return }
             scan.capacity = capacity
+            writable = ndefStatus == .readWrite
+            queriedCapacity = capacity
             switch ndefStatus {
             case .notSupported:
                 scan.ndefStatus = "Not supported"
@@ -244,6 +305,10 @@ final class NFCScanner: NSObject, ObservableObject, NFCTagReaderSessionDelegate 
             let message = try await ndefTag.readNDEF()
             guard readerSession === session else { return }
             scan.records = message.records.map(NFCRecord.init)
+            scan.registrationScan = RegistrationScan(rawUID: rawUID, technology: technology, writable: writable,
+                readComplete: true, capacity: capacity, records: message.records.map {
+                    RegistrationPayload(format: $0.typeNameFormat.rawValue, type: $0.type, identifier: $0.identifier, payload: $0.payload)
+                })
             if scan.records.isEmpty { scan.note = "No NDEF records are stored on this tag." }
             result = scan
             finish(session, message: "Tag read successfully.")
@@ -251,6 +316,8 @@ final class NFCScanner: NSObject, ObservableObject, NFCTagReaderSessionDelegate 
             guard readerSession === session else { return }
             if (error as? NFCReaderError)?.code == .ndefReaderSessionErrorZeroLengthMessage {
                 scan.note = "No NDEF message is stored on this tag."
+                scan.registrationScan = RegistrationScan(rawUID: rawUID, technology: technology, writable: writable,
+                    readComplete: true, capacity: queriedCapacity, records: [])
                 result = scan
                 finish(session, message: "Tag ID read. No NDEF message found.")
             } else {
@@ -262,11 +329,123 @@ final class NFCScanner: NSObject, ObservableObject, NFCTagReaderSessionDelegate 
         }
     }
 
+    func connectForWriting() async throws -> EquipmentTagUID {
+        guard isAvailable, Self.sessionOwner == nil else {
+            throw NFCWriteError.message("NFC is unavailable or another scan is still closing. Wait a moment and try again on a compatible iPhone.")
+        }
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                guard !Task.isCancelled,
+                      let session = NFCTagReaderSession(pollingOption: [.iso14443, .iso15693], delegate: self, queue: nil) else {
+                    continuation.resume(throwing: CancellationError()); return
+                }
+                writeContinuation = continuation
+                writingMode = true
+                writingConnection = nil
+                isReading = false
+                isScanning = true
+                readerSession = session
+                Self.sessionOwner = self
+                leaseSession = session
+                session.alertMessage = "Scan the same tag used for this equipment. Keep it still until verification finishes."
+                session.begin()
+            }
+        } onCancel: { Task { @MainActor in self.cancel() } }
+    }
+
+    private func connectWritingTag(_ tag: NFCTag, session: NFCTagReaderSession) async {
+        do {
+            let ndefTag: any NFCNDEFTag
+            let rawUID: Data
+            let technology: EquipmentTagTechnology
+            switch tag {
+            case .miFare(let value) where value.mifareFamily == .ultralight:
+                ndefTag = value; rawUID = value.identifier; technology = .mifare
+            case .iso15693(let value):
+                ndefTag = value; rawUID = value.identifier; technology = .iso15693
+            default:
+                throw NFCWriteError.message("Writing is supported only for NDEF-capable MIFARE Ultralight/NTAG and ISO 15693 tags. This tag remains read-only in GearLink.")
+            }
+            try await session.connect(to: tag)
+            guard readerSession === session, writingMode else { throw CancellationError() }
+            let uid = EquipmentTagUID(rawValue: rawUID.map { String(format: "%02X", $0) }.joined())
+            guard let uid, uid.rawValue.count >= 6 else { throw RegistrationError.identityConflict }
+            writingConnection = WritingConnection(session: session, tag: ndefTag, rawUID: rawUID, technology: technology)
+            writeContinuation?.resume(returning: uid)
+            writeContinuation = nil
+        } catch {
+            guard readerSession === session else { return }
+            writeContinuation?.resume(throwing: error)
+            writeContinuation = nil
+            finish(session, message: "This tag couldn't be connected for registration.", failed: true)
+        }
+    }
+
+    private func checkedWritingConnection(expected: NFCTagReaderSession? = nil) throws -> WritingConnection {
+        try Task.checkCancellation()
+        guard let connection = writingConnection, readerSession === connection.session,
+              writingMode, (expected == nil || connection.session === expected), connection.tag.isAvailable else {
+            throw NFCWriteError.message("The tag disconnected or the scan stopped. Its write outcome may be unknown. Scan the same tag again.")
+        }
+        return connection
+    }
+
+    func inspectForWriting() async throws -> RegistrationScan {
+        let connection = try checkedWritingConnection()
+        let (state, capacity) = try await connection.tag.queryNDEFStatus()
+        _ = try checkedWritingConnection(expected: connection.session)
+        guard state == .readWrite || state == .readOnly else {
+            throw NFCWriteError.message("This tag does not support NDEF. No equipment identity can be written.")
+        }
+        let records: [NFCNDEFPayload]
+        do { records = try await connection.tag.readNDEF().records }
+        catch {
+            if (error as? NFCReaderError)?.code == .ndefReaderSessionErrorZeroLengthMessage { records = [] }
+            else { throw error }
+        }
+        _ = try checkedWritingConnection(expected: connection.session)
+        return RegistrationScan(rawUID: connection.rawUID, technology: connection.technology,
+            writable: state == .readWrite, readComplete: true, capacity: capacity,
+            records: records.map { RegistrationPayload(format: $0.typeNameFormat.rawValue,
+                type: $0.type, identifier: $0.identifier, payload: $0.payload) })
+    }
+
+    func writeGearLinkID(_ id: GearLinkEquipmentID) async throws {
+        let connection = try checkedWritingConnection()
+        guard let record = NFCNDEFPayload.wellKnownTypeTextPayload(string: id.rawValue, locale: Locale(identifier: "en")) else {
+            throw RegistrationError.identityConflict
+        }
+        let message = NFCNDEFMessage(records: [record])
+        let (state, capacity) = try await connection.tag.queryNDEFStatus()
+        _ = try checkedWritingConnection(expected: connection.session)
+        guard state == .readWrite, capacity >= message.length else {
+            throw NFCWriteError.message("The tag is read-only or too small for the equipment ID. Nothing was written.")
+        }
+        // Inspect again after the database round trip. Content may have changed
+        // since the first inspection; normal registration never overwrites it.
+        let fresh = try await inspectForWriting()
+        let existing = try fresh.inspectedIdentity()
+        if existing == id { return }
+        guard existing == nil else { throw RegistrationError.identityConflict }
+        _ = try checkedWritingConnection(expected: connection.session)
+        try await connection.tag.writeNDEF(message)
+        _ = try checkedWritingConnection(expected: connection.session)
+    }
+
+    func closeWriting(message: String, failed: Bool) {
+        guard let session = readerSession else { return }
+        writeContinuation?.resume(throwing: CancellationError())
+        writeContinuation = nil
+        finish(session, message: message, failed: failed)
+    }
+
     private func finish(_ session: NFCTagReaderSession, message: String, failed: Bool = false) {
         guard readerSession === session else { return }
         readerSession = nil
         isScanning = false
         isReading = false
+        writingConnection = nil
+        writingMode = false
         status = message
         if failed {
             session.invalidate(errorMessage: message)

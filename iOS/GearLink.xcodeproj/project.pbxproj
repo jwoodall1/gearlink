@@ -17,6 +17,16 @@
 		A10000000000000000000010 /* NFCScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000010 /* NFCScannerView.swift */; };
 		A10000000000000000000012 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000012 /* DesignSystem.swift */; };
 		A10000000000000000000013 /* DashboardStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000013 /* DashboardStore.swift */; };
+		A10000000000000000000014 /* EquipmentModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000014 /* EquipmentModels.swift */; };
+		A10000000000000000000023 /* EquipmentFormFields.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000023 /* EquipmentFormFields.swift */; };
+		A10000000000000000000022 /* EquipmentEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000022 /* EquipmentEditor.swift */; };
+		A10000000000000000000021 /* EquipmentDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000021 /* EquipmentDetailView.swift */; };
+		A10000000000000000000020 /* EquipmentOperations.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000020 /* EquipmentOperations.swift */; };
+		A10000000000000000000019 /* WriteTagView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000019 /* WriteTagView.swift */; };
+		A10000000000000000000018 /* NFCWriting.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000018 /* NFCWriting.swift */; };
+		A10000000000000000000017 /* RegisterEquipmentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000017 /* RegisterEquipmentView.swift */; };
+		A10000000000000000000016 /* EquipmentRegistrationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000016 /* EquipmentRegistrationService.swift */; };
+		A10000000000000000000015 /* EquipmentRegistration.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000015 /* EquipmentRegistration.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -33,6 +43,16 @@
 		A20000000000000000000011 /* GearLink.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = GearLink.entitlements; sourceTree = "<group>"; };
 		A20000000000000000000012 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
 		A20000000000000000000013 /* DashboardStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardStore.swift; sourceTree = "<group>"; };
+		A20000000000000000000014 /* EquipmentModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EquipmentModels.swift; sourceTree = "<group>"; };
+		A20000000000000000000023 /* EquipmentFormFields.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EquipmentFormFields.swift; sourceTree = "<group>"; };
+		A20000000000000000000022 /* EquipmentEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EquipmentEditor.swift; sourceTree = "<group>"; };
+		A20000000000000000000021 /* EquipmentDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EquipmentDetailView.swift; sourceTree = "<group>"; };
+		A20000000000000000000020 /* EquipmentOperations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EquipmentOperations.swift; sourceTree = "<group>"; };
+		A20000000000000000000019 /* WriteTagView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WriteTagView.swift; sourceTree = "<group>"; };
+		A20000000000000000000018 /* NFCWriting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NFCWriting.swift; sourceTree = "<group>"; };
+		A20000000000000000000017 /* RegisterEquipmentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegisterEquipmentView.swift; sourceTree = "<group>"; };
+		A20000000000000000000016 /* EquipmentRegistrationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EquipmentRegistrationService.swift; sourceTree = "<group>"; };
+		A20000000000000000000015 /* EquipmentRegistration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EquipmentRegistration.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -65,6 +85,16 @@
 				A20000000000000000000011 /* GearLink.entitlements */,
 				A20000000000000000000012 /* DesignSystem.swift */,
 				A20000000000000000000013 /* DashboardStore.swift */,
+				A20000000000000000000014 /* EquipmentModels.swift */,
+				A20000000000000000000023 /* EquipmentFormFields.swift */,
+				A20000000000000000000022 /* EquipmentEditor.swift */,
+				A20000000000000000000021 /* EquipmentDetailView.swift */,
+				A20000000000000000000020 /* EquipmentOperations.swift */,
+				A20000000000000000000019 /* WriteTagView.swift */,
+				A20000000000000000000018 /* NFCWriting.swift */,
+				A20000000000000000000017 /* RegisterEquipmentView.swift */,
+				A20000000000000000000016 /* EquipmentRegistrationService.swift */,
+				A20000000000000000000015 /* EquipmentRegistration.swift */,
 				A20000000000000000000009 /* DashboardView.swift */,
 				A20000000000000000000008 /* RosterStore.swift */,
 				A20000000000000000000003 /* SupabaseClientProvider.swift */,
@@ -170,6 +200,16 @@
 				A10000000000000000000010 /* NFCScannerView.swift in Sources */,
 				A10000000000000000000012 /* DesignSystem.swift in Sources */,
 				A10000000000000000000013 /* DashboardStore.swift in Sources */,
+				A10000000000000000000014 /* EquipmentModels.swift in Sources */,
+				A10000000000000000000023 /* EquipmentFormFields.swift in Sources */,
+				A10000000000000000000022 /* EquipmentEditor.swift in Sources */,
+				A10000000000000000000021 /* EquipmentDetailView.swift in Sources */,
+				A10000000000000000000020 /* EquipmentOperations.swift in Sources */,
+				A10000000000000000000019 /* WriteTagView.swift in Sources */,
+				A10000000000000000000018 /* NFCWriting.swift in Sources */,
+				A10000000000000000000017 /* RegisterEquipmentView.swift in Sources */,
+				A10000000000000000000016 /* EquipmentRegistrationService.swift in Sources */,
+				A10000000000000000000015 /* EquipmentRegistration.swift in Sources */,
 				A10000000000000000000009 /* DashboardView.swift in Sources */,
 				A10000000000000000000008 /* RosterStore.swift in Sources */,
 				A10000000000000000000003 /* SupabaseClientProvider.swift in Sources */,
@@ -206,6 +246,7 @@
 			baseConfigurationReference = A20000000000000000000005 /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = GearLink/GearLink.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = D5863A53DN;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -223,6 +264,7 @@
 			baseConfigurationReference = A20000000000000000000005 /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = GearLink/GearLink.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = D5863A53DN;
 				GENERATE_INFOPLIST_FILE = NO;

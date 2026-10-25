@@ -15,7 +15,7 @@ Install dependencies with `npm ci`. Copy `.env.example` to `.env.local` and fill
 
 ## iOS development
 
-Open `iOS/GearLink.xcodeproj` in Xcode. Follow `iOS/README.md` for local Supabase configuration and device signing. NFC source is preserved but scanning and its signing requirement are currently disabled for Personal Team builds.
+Open `iOS/GearLink.xcodeproj` in Xcode. Follow `iOS/README.md` for local Supabase configuration and device signing. NFC scanning is enabled and requires a compatible physical iPhone and an NFC-capable provisioning profile from your approved Apple Developer Program team.
 
 ## What belongs in Git
 

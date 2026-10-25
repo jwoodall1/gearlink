@@ -41,17 +41,11 @@ The bottom tab bar contains Dashboard, Athletes, and Settings. Settings shows th
 Check each appearance choice in Settings, reopen the app to confirm the selection persists, and change the device appearance while System is selected. Verify sign-out returns to the login screen with the selected appearance.
 
 
-## NFC scanner (temporarily disabled)
+## NFC scanner
 
-NFC scanning is temporarily disabled. The scan button is disabled, the reader code and entitlement file are preserved, and Debug/Release do not request the NFC signing capability. The usage description and entitlement file remain for future use.
+NFC scanning is enabled. Debug and Release both use `GearLink/GearLink.entitlements`, which requests the TAG reader entitlement. The app retains its NFC usage description and ISO 7816 NDEF application identifier.
 
-To re-enable after selecting a team and provisioning profile that support NFC Tag Reading:
-
-1. Add Near Field Communication Tag Reading in Xcode's Signing & Capabilities.
-2. Set Code Signing Entitlements to `GearLink/GearLink.entitlements` for both Debug and Release; ensure the profile includes NFC Tag Reading.
-3. Set `NFCScanner.isEnabled` to `true` in `NFCScannerView.swift`.
-
-The following describes behavior when enabled.
+Select your approved Apple Developer Program team in Xcode's Signing & Capabilities and use automatic signing. Ensure the app identifier and provisioning profile include Near Field Communication Tag Reading. If Xcode still uses a Personal Team profile, refresh the account/team selection and regenerate the development provisioning profile before installing on your iPhone.
 
 Open Dashboard → Open scanner → Scan tag on a compatible physical iPhone. Hold the top of the phone near one tag until the system scanning sheet closes. Simulator cannot read physical tags.
 
@@ -63,7 +57,7 @@ The scanner reads only. It does not write tags, register equipment, or save scan
 
 ### Signing and device testing
 
-When re-enabled, use the preserved NFC usage description and TAG reader entitlement with the Near Field Communication Tag Reading capability. Use your development team with automatic signing in Xcode. The iPhone provisioning profile must include NFC Tag Reading; Xcode may need to regenerate it. An unsigned Simulator build cannot validate the device profile or physical NFC behavior.
+The project includes the NFC usage description and TAG reader entitlement for Near Field Communication Tag Reading. Use your development team with automatic signing in Xcode. The iPhone provisioning profile must include NFC Tag Reading; Xcode may need to regenerate it. An unsigned Simulator build cannot validate the device profile or physical NFC behavior.
 
 Check on iPhone:
 
